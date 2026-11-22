@@ -6,7 +6,7 @@ import path from 'node:path';
 import express from 'express';
 import { GoogleGenAI, Type } from '@google/genai';
 import { WebSocketServer, WebSocket } from 'ws';
-import { buildZipBuffer, type ZipEntryInput } from './src/utils/zipBuilder.ts';
+import { buildZipBuffer, type ZipEntryInput } from './src/utils/zipBuilder';
 
 const PORT = 3000;
 const DATA_DIR = path.resolve(process.cwd(), 'data');
