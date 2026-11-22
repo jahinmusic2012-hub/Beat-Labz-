@@ -1,0 +1,6 @@
+{
+  "name": "BEAT LABZ",
+  "description": "BEAT LABZ — Complete Web Audio DAW, Mastering Lab, Live Stage, AI Music Assistant, Cloud Studio, Real-Time Collaboration, Location Sharing & Music Education Suite.",
+  "requestFramePermissions": ["microphone", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

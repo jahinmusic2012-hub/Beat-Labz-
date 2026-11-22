@@ -1,0 +1,147 @@
+{
+  "entities": {
+    "UserPublicProfile": {
+      "title": "UserPublicProfile",
+      "description": "Public musician profile displayed in BEAT LABZ Connect and Collaboration Studio.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "photoURL": { "type": "string", "maxLength": 500 },
+        "instrumentFocus": { "type": "string", "maxLength": 80 },
+        "bio": { "type": "string", "maxLength": 300 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "updatedAt"]
+    },
+    "UserPrivateInfo": {
+      "title": "UserPrivateInfo",
+      "description": "Private PII isolated under users/{userId}/private/info.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "maxLength": 254 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "updatedAt"]
+    },
+    "StudioProject": {
+      "title": "StudioProject",
+      "description": "BEAT LABZ Cloud Studio DAW project with native structured tracks, chord chart, songbook, and mastering settings.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "bpm": { "type": "number" },
+        "timeSignature": { "type": "string", "maxLength": 12 },
+        "musicalKey": { "type": "string", "maxLength": 24 },
+        "isPrivate": { "type": "boolean" },
+        "shareToken": { "type": "string", "maxLength": 128 },
+        "storageBytes": { "type": "number" },
+        "tracks": { "type": "array" },
+        "chordChart": { "type": "array" },
+        "songbook": { "type": "object" },
+        "mastering": { "type": "object" },
+        "collaboratorEmails": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerId", "title", "bpm", "timeSignature", "musicalKey", "isPrivate", "storageBytes", "createdAt", "updatedAt"]
+    },
+    "ProjectVersion": {
+      "title": "ProjectVersion",
+      "description": "Immutable snapshot entry in Cloud Studio version history.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "projectId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "bpm": { "type": "number" },
+        "musicalKey": { "type": "string", "maxLength": 24 },
+        "tracks": { "type": "array" },
+        "chordChart": { "type": "array" },
+        "mastering": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "projectId", "ownerId", "label", "bpm", "musicalKey", "createdAt"]
+    },
+    "ProjectCollaborator": {
+      "title": "ProjectCollaborator",
+      "description": "Collaborator permission record inside a project.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "projectId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "maxLength": 254 },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "role": { "type": "string", "enum": ["editor", "commenter", "viewer"] },
+        "addedBy": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "projectId", "email", "displayName", "role", "addedBy", "createdAt"]
+    },
+    "ProjectComment": {
+      "title": "ProjectComment",
+      "description": "Timestamped collaboration comment on a project.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "projectId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "authorId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "authorName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "body": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "projectId", "authorId", "authorName", "body", "createdAt"]
+    },
+    "AudioBackupMeta": {
+      "title": "AudioBackupMeta",
+      "description": "Metadata pointer referencing large audio files stored in external object storage.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "projectId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "fileName": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "mimeType": { "type": "string", "maxLength": 64 },
+        "sizeBytes": { "type": "number" },
+        "objectUrl": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "durationSec": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "projectId", "ownerId", "fileName", "mimeType", "sizeBytes", "objectUrl", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserPublicProfile" },
+      "description": "Public profile for BEAT LABZ musicians."
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/UserPrivateInfo" },
+      "description": "Private PII document (info) accessible only to the owning user."
+    },
+    "/projects/{projectId}": {
+      "schema": { "$ref": "#/entities/StudioProject" },
+      "description": "Cloud Studio DAW project metadata, tracks, chord charts, and mastering config."
+    },
+    "/projects/{projectId}/versions/{versionId}": {
+      "schema": { "$ref": "#/entities/ProjectVersion" },
+      "description": "Version history snapshots owned by the project owner."
+    },
+    "/projects/{projectId}/collaborators/{collabId}": {
+      "schema": { "$ref": "#/entities/ProjectCollaborator" },
+      "description": "Collaborator role grants for a project."
+    },
+    "/projects/{projectId}/comments/{commentId}": {
+      "schema": { "$ref": "#/entities/ProjectComment" },
+      "description": "Collaborator feedback and timeline comments."
+    },
+    "/projects/{projectId}/audioBackups/{backupId}": {
+      "schema": { "$ref": "#/entities/AudioBackupMeta" },
+      "description": "Audio object storage backup references (no large binary blobs in Firestore)."
+    }
+  }
+}

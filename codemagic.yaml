@@ -1,0 +1,72 @@
+workflows:
+  beat-labz-android-debug:
+    name: BEAT LABZ Android Debug APK
+    max_build_duration: 60
+    instance_type: linux_x2
+    environment:
+      vars:
+        # Point the APK at your separately deployed BEAT LABZ backend URL
+        # (never put GEMINI_API_KEY or Firebase admin secrets here; keep them on the server!)
+        VITE_API_BASE_URL: https://ais-pre-6cb7rhe3koo64c63leez2e-618046858354.asia-east1.run.app
+      node: 20.18.0
+      java: 21
+    scripts:
+      - name: Install Node dependencies
+        script: |
+          npm ci
+      - name: Verify TypeScript types
+        script: |
+          npm run lint
+      - name: Build production web bundle into dist
+        script: |
+          npm run build
+      - name: Synchronize Capacitor 7 Android project
+        script: |
+          npx cap sync android
+      - name: Build Android Debug APK
+        script: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+    artifacts:
+      - android/app/build/outputs/**/*.apk
+    publishing:
+      email:
+        recipients:
+          - build-notifications@example.com
+        notify:
+          success: true
+          failure: true
+
+  beat-labz-android-release:
+    name: BEAT LABZ Android Release APK & AAB
+    max_build_duration: 60
+    instance_type: linux_x2
+    environment:
+      android_signing:
+        - beat_labz_keystore
+      vars:
+        VITE_API_BASE_URL: https://ais-pre-6cb7rhe3koo64c63leez2e-618046858354.asia-east1.run.app
+      node: 20.18.0
+      java: 21
+    scripts:
+      - name: Install Node dependencies
+        script: |
+          npm ci
+      - name: Verify TypeScript types
+        script: |
+          npm run lint
+      - name: Build production web bundle into dist
+        script: |
+          npm run build
+      - name: Synchronize Capacitor 7 Android project
+        script: |
+          npx cap sync android
+      - name: Build signed Android Release APK & AAB
+        script: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease bundleRelease
+    artifacts:
+      - android/app/build/outputs/**/*.apk
+      - android/app/build/outputs/**/*.aab

@@ -1,0 +1,247 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    function isBootstrappedAdmin() {
+      return isSignedIn() && request.auth.token.email == 'jahinmusic2012@gmail.com';
+    }
+    function isValidEmail(val) {
+      return val is string && val.size() >= 3 && val.size() <= 254 && val.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
+    }
+
+    // Connection validation probe (read-only)
+    match /test/connection {
+      allow get: if isSignedIn();
+    }
+
+    // Validation Blueprints
+    function isValidUserPublic(data, userId) {
+      return data.keys().hasAll(['uid', 'displayName', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'photoURL', 'instrumentFocus', 'bio', 'updatedAt'])
+        && data.uid == userId
+        && isValidId(data.uid)
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80
+        && (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 500))
+        && (!('instrumentFocus' in data) || (data.instrumentFocus is string && data.instrumentFocus.size() <= 80))
+        && (!('bio' in data) || (data.bio is string && data.bio.size() <= 300))
+        && data.updatedAt == request.time;
+    }
+
+    function isValidUserPrivate(data, userId) {
+      return data.keys().hasAll(['uid', 'email', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'updatedAt'])
+        && data.uid == userId
+        && isValidId(data.uid)
+        && isValidEmail(data.email)
+        && data.updatedAt == request.time;
+    }
+
+    function isValidProject(data, projectId) {
+      return data.keys().hasAll(['id', 'ownerId', 'title', 'bpm', 'timeSignature', 'musicalKey', 'isPrivate', 'storageBytes', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'ownerId', 'title', 'bpm', 'timeSignature', 'musicalKey', 'isPrivate', 'shareToken', 'storageBytes', 'tracks', 'chordChart', 'songbook', 'mastering', 'collaboratorEmails', 'createdAt', 'updatedAt'])
+        && data.id == projectId
+        && isValidId(data.id)
+        && isValidId(data.ownerId)
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 120
+        && data.bpm is number && data.bpm >= 30 && data.bpm <= 300
+        && data.timeSignature is string && data.timeSignature.size() >= 3 && data.timeSignature.size() <= 12
+        && data.musicalKey is string && data.musicalKey.size() >= 1 && data.musicalKey.size() <= 24
+        && data.isPrivate is bool
+        && (!('shareToken' in data) || (data.shareToken is string && data.shareToken.size() <= 128))
+        && data.storageBytes is number && data.storageBytes >= 0 && data.storageBytes <= 1073741824
+        && (!('tracks' in data) || (data.tracks is list && data.tracks.size() <= 16))
+        && (!('chordChart' in data) || (data.chordChart is list && data.chordChart.size() <= 64))
+        && (!('songbook' in data) || (data.songbook is map && data.songbook.keys().size() <= 10))
+        && (!('mastering' in data) || (data.mastering is map && data.mastering.keys().size() <= 20))
+        && (!('collaboratorEmails' in data) || (data.collaboratorEmails is list && data.collaboratorEmails.size() <= 20 && (data.collaboratorEmails.size() == 0 || isValidEmail(data.collaboratorEmails[0]))))
+        && data.createdAt is timestamp
+        && data.updatedAt == request.time;
+    }
+
+    function isValidVersion(data, projectId, versionId) {
+      return data.keys().hasAll(['id', 'projectId', 'ownerId', 'label', 'bpm', 'musicalKey', 'createdAt'])
+        && data.keys().hasOnly(['id', 'projectId', 'ownerId', 'label', 'bpm', 'musicalKey', 'tracks', 'chordChart', 'mastering', 'createdAt'])
+        && data.id == versionId && isValidId(data.id)
+        && data.projectId == projectId && isValidId(data.projectId)
+        && isValidId(data.ownerId)
+        && data.label is string && data.label.size() >= 1 && data.label.size() <= 120
+        && data.bpm is number && data.bpm >= 30 && data.bpm <= 300
+        && data.musicalKey is string && data.musicalKey.size() >= 1 && data.musicalKey.size() <= 24
+        && (!('tracks' in data) || (data.tracks is list && data.tracks.size() <= 16))
+        && (!('chordChart' in data) || (data.chordChart is list && data.chordChart.size() <= 64))
+        && (!('mastering' in data) || (data.mastering is map && data.mastering.keys().size() <= 20))
+        && data.createdAt == request.time;
+    }
+
+    function isValidCollaborator(data, projectId, collabId) {
+      return data.keys().hasAll(['id', 'projectId', 'email', 'displayName', 'role', 'addedBy', 'createdAt'])
+        && data.keys().hasOnly(['id', 'projectId', 'email', 'displayName', 'role', 'addedBy', 'createdAt'])
+        && data.id == collabId && isValidId(data.id)
+        && data.projectId == projectId && isValidId(data.projectId)
+        && isValidEmail(data.email)
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80
+        && data.role in ['editor', 'commenter', 'viewer']
+        && data.addedBy == request.auth.uid
+        && data.createdAt == request.time;
+    }
+
+    function isValidComment(data, projectId, commentId) {
+      return data.keys().hasAll(['id', 'projectId', 'authorId', 'authorName', 'body', 'createdAt'])
+        && data.keys().hasOnly(['id', 'projectId', 'authorId', 'authorName', 'body', 'createdAt'])
+        && data.id == commentId && isValidId(data.id)
+        && data.projectId == projectId && isValidId(data.projectId)
+        && data.authorId == request.auth.uid
+        && data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 80
+        && data.body is string && data.body.size() >= 1 && data.body.size() <= 1000
+        && data.createdAt == request.time;
+    }
+
+    function isValidAudioBackup(data, projectId, backupId) {
+      return data.keys().hasAll(['id', 'projectId', 'ownerId', 'fileName', 'mimeType', 'sizeBytes', 'objectUrl', 'createdAt'])
+        && data.keys().hasOnly(['id', 'projectId', 'ownerId', 'fileName', 'mimeType', 'sizeBytes', 'objectUrl', 'durationSec', 'createdAt'])
+        && data.id == backupId && isValidId(data.id)
+        && data.projectId == projectId && isValidId(data.projectId)
+        && data.ownerId == request.auth.uid
+        && data.fileName is string && data.fileName.size() >= 1 && data.fileName.size() <= 160
+        && data.mimeType is string && data.mimeType.size() >= 3 && data.mimeType.size() <= 64
+        && data.sizeBytes is number && data.sizeBytes >= 0 && data.sizeBytes <= 104857600
+        && data.objectUrl is string && data.objectUrl.size() >= 1 && data.objectUrl.size() <= 500
+        && (!('durationSec' in data) || (data.durationSec is number && data.durationSec >= 0 && data.durationSec <= 7200))
+        && data.createdAt == request.time;
+    }
+
+    // Users Collection (PII Split)
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId);
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUserPublic(incoming(), userId);
+      allow update: if isOwner(userId) && isValidId(userId)
+        && isValidUserPublic(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'instrumentFocus', 'bio', 'updatedAt']);
+
+      match /private/{docId} {
+        allow get: if isOwner(userId) && isValidId(userId) && docId == 'info';
+        allow create: if isOwner(userId) && isValidId(userId) && docId == 'info' && isValidUserPrivate(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(userId) && docId == 'info'
+          && isValidUserPrivate(incoming(), userId)
+          && incoming().uid == existing().uid
+          && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'updatedAt']);
+      }
+    }
+
+    // Helper for Project Parent Access (Master Gate for Subcollections)
+    function getProject(projectId) {
+      return get(/databases/$(database)/documents/projects/$(projectId)).data;
+    }
+    function isProjectOwnerOrAdmin(projectId) {
+      return isBootstrappedAdmin() || getProject(projectId).ownerId == request.auth.uid;
+    }
+    function isProjectCollaborator(projectId) {
+      return 'collaboratorEmails' in getProject(projectId)
+        && request.auth.token.email in getProject(projectId).collaboratorEmails;
+    }
+
+    // Projects Collection
+    match /projects/{projectId} {
+      allow get: if isSignedIn() && isValidId(projectId) && (
+        existing().ownerId == request.auth.uid ||
+        isBootstrappedAdmin() ||
+        ('collaboratorEmails' in existing() && request.auth.token.email in existing().collaboratorEmails)
+      );
+      allow list: if isSignedIn() && (
+        existing().ownerId == request.auth.uid ||
+        isBootstrappedAdmin() ||
+        ('collaboratorEmails' in existing() && request.auth.token.email in existing().collaboratorEmails)
+      );
+      allow create: if isSignedIn() && isValidId(projectId)
+        && isValidProject(incoming(), projectId)
+        && incoming().ownerId == request.auth.uid
+        && incoming().createdAt == request.time;
+      allow update: if isSignedIn() && isValidId(projectId)
+        && isValidProject(incoming(), projectId)
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && (
+          // Action: Owner or Admin Full Project Edit
+          ((existing().ownerId == request.auth.uid || isBootstrappedAdmin())
+            && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'bpm', 'timeSignature', 'musicalKey', 'isPrivate', 'shareToken', 'storageBytes', 'tracks', 'chordChart', 'songbook', 'mastering', 'collaboratorEmails', 'updatedAt']))
+          ||
+          // Action: Collaborator Musical Edit
+          (('collaboratorEmails' in existing() && request.auth.token.email in existing().collaboratorEmails)
+            && incoming().diff(existing()).affectedKeys().hasOnly(['tracks', 'chordChart', 'songbook', 'updatedAt']))
+        );
+      allow delete: if isSignedIn() && isValidId(projectId) && (existing().ownerId == request.auth.uid || isBootstrappedAdmin());
+
+      // Version History Subcollection (Master Gate)
+      match /versions/{versionId} {
+        allow get: if isSignedIn() && isValidId(projectId) && isValidId(versionId) && (isProjectOwnerOrAdmin(projectId) || isProjectCollaborator(projectId));
+        allow list: if isSignedIn() && existing().ownerId == request.auth.uid;
+        allow create: if isSignedIn() && isValidId(projectId) && isValidId(versionId)
+          && isValidVersion(incoming(), projectId, versionId)
+          && incoming().ownerId == request.auth.uid
+          && exists(/databases/$(database)/documents/projects/$(projectId))
+          && isProjectOwnerOrAdmin(projectId);
+        allow delete: if isSignedIn() && isValidId(projectId) && isValidId(versionId) && isProjectOwnerOrAdmin(projectId);
+      }
+
+      // Collaborators Subcollection (Master Gate)
+      match /collaborators/{collabId} {
+        allow get: if isSignedIn() && isValidId(projectId) && isValidId(collabId) && (isProjectOwnerOrAdmin(projectId) || isProjectCollaborator(projectId));
+        allow list: if isSignedIn() && existing().addedBy == request.auth.uid;
+        allow create: if isSignedIn() && isValidId(projectId) && isValidId(collabId)
+          && isValidCollaborator(incoming(), projectId, collabId)
+          && exists(/databases/$(database)/documents/projects/$(projectId))
+          && isProjectOwnerOrAdmin(projectId);
+        allow update: if isSignedIn() && isValidId(projectId) && isValidId(collabId)
+          && isProjectOwnerOrAdmin(projectId)
+          && incoming().id == existing().id
+          && incoming().projectId == existing().projectId
+          && incoming().addedBy == existing().addedBy
+          && incoming().createdAt == existing().createdAt
+          && incoming().diff(existing()).affectedKeys().hasOnly(['role', 'displayName'])
+          && incoming().role in ['editor', 'commenter', 'viewer']
+          && incoming().displayName is string && incoming().displayName.size() >= 1 && incoming().displayName.size() <= 80;
+        allow delete: if isSignedIn() && isValidId(projectId) && isValidId(collabId) && isProjectOwnerOrAdmin(projectId);
+      }
+
+      // Project Comments Subcollection (Master Gate)
+      match /comments/{commentId} {
+        allow get: if isSignedIn() && isValidId(projectId) && isValidId(commentId) && (isProjectOwnerOrAdmin(projectId) || isProjectCollaborator(projectId));
+        allow list: if isSignedIn() && existing().authorId == request.auth.uid;
+        allow create: if isSignedIn() && isValidId(projectId) && isValidId(commentId)
+          && isValidComment(incoming(), projectId, commentId)
+          && exists(/databases/$(database)/documents/projects/$(projectId))
+          && (isProjectOwnerOrAdmin(projectId) || isProjectCollaborator(projectId));
+        allow delete: if isSignedIn() && isValidId(projectId) && isValidId(commentId)
+          && (existing().authorId == request.auth.uid || isProjectOwnerOrAdmin(projectId));
+      }
+
+      // Audio Backup Metadata Subcollection (Master Gate)
+      match /audioBackups/{backupId} {
+        allow get: if isSignedIn() && isValidId(projectId) && isValidId(backupId) && (isProjectOwnerOrAdmin(projectId) || isProjectCollaborator(projectId));
+        allow list: if isSignedIn() && existing().ownerId == request.auth.uid;
+        allow create: if isSignedIn() && isValidId(projectId) && isValidId(backupId)
+          && isValidAudioBackup(incoming(), projectId, backupId)
+          && exists(/databases/$(database)/documents/projects/$(projectId))
+          && isProjectOwnerOrAdmin(projectId);
+        allow delete: if isSignedIn() && isValidId(projectId) && isValidId(backupId) && isProjectOwnerOrAdmin(projectId);
+      }
+    }
+  }
+}
